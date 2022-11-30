@@ -1,4 +1,4 @@
-module Tests
+module EncryptionDecryptionTests
 
 open Xunit
 open Signal.DoubleRatchet.DoubleRatchet

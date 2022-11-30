@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="DoubleRatchetTests.fs" />
+    <Compile Include="Tests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FsUnit.xUnit" Version="5.1.0" />
