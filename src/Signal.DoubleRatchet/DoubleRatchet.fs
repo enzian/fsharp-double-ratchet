@@ -57,7 +57,7 @@ module DoubleRatchet =
               PN = 0u
               MKSKIPPED = Map [] }
 
-    let EncryptMessage state plaintext ad =
+    let EncryptMessage state plaintext =
         let (CKs, mk) = kdf_ck state.CKs
 
         let headers =
