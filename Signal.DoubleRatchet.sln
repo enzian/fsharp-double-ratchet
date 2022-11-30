@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E52CAC3D-125B-4FBC-8F68-DCCFA1D0373B}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Signal.DoubleRatched", "src\Signal.DoubleRatchet\Signal.DoubleRatched.fsproj", "{A2CFEA76-F415-4348-8A85-2CF3A48C2035}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Signal.DoubleRatchet.Tests", "src\Signal.DoubleRatchet.Tests\Signal.DoubleRatchet.Tests.fsproj", "{7D1C8BDD-A70F-4D6F-9538-D137F21F9D3F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A2CFEA76-F415-4348-8A85-2CF3A48C2035}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2CFEA76-F415-4348-8A85-2CF3A48C2035}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2CFEA76-F415-4348-8A85-2CF3A48C2035}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2CFEA76-F415-4348-8A85-2CF3A48C2035}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D1C8BDD-A70F-4D6F-9538-D137F21F9D3F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D1C8BDD-A70F-4D6F-9538-D137F21F9D3F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D1C8BDD-A70F-4D6F-9538-D137F21F9D3F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D1C8BDD-A70F-4D6F-9538-D137F21F9D3F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A2CFEA76-F415-4348-8A85-2CF3A48C2035} = {E52CAC3D-125B-4FBC-8F68-DCCFA1D0373B}
+		{7D1C8BDD-A70F-4D6F-9538-D137F21F9D3F} = {E52CAC3D-125B-4FBC-8F68-DCCFA1D0373B}
+	EndGlobalSection
+EndGlobal
