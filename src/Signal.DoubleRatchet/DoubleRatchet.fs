@@ -83,7 +83,7 @@ module DoubleRatchet =
 
     let DecryptMessage state headers cypherText =
 
-        let DHRatchet (dhs: byte array) state  =
+        let DHRatchet (dhs: byte array) state =
             let senderPubKey = ECDiffieHellman.Create()
             senderPubKey.ImportSubjectPublicKeyInfo(dhs) |> ignore
             let DHr = senderPubKey.PublicKey
@@ -114,7 +114,7 @@ module DoubleRatchet =
                 let mutable CKr = ckr
 
                 let newlySkippedMks =
-                    [ 
+                    [
 
                       for i in [ state.Nr .. (until - 1u) ] do
                           let ckr, mk = kdf_ck CKr
@@ -122,45 +122,47 @@ module DoubleRatchet =
                           (dhr, i), mk ]
 
                 { state with
-                    CKr = Some CKr;
-                    Nr = until - 1u;
+                    CKr = Some CKr
+                    Nr = until - 1u
                     MKSKIPPED =
                         newlySkippedMks
-                        |> Seq.fold (fun acc (key, value) -> acc.Add(key, value)) state.MKSKIPPED; }
+                        |> Seq.fold (fun acc (key, value) -> acc.Add(key, value)) state.MKSKIPPED }
             | None -> state
 
-        let state =
-            match (state.DHr, state.CKr, headers.DHs) with
-            // got a sender pub key but does not have one yet
-            | (None, None, dhs) ->
-                printfn "never got a Public Key, running DH ratchet"
-                state |> DHRatchet dhs
-            // got sender public key but it does not match the one we have
-            | (Some dhr, Some ckr, dhs) when not (dhr.ExportSubjectPublicKeyInfo() = dhs) ->
-                printfn "got new pub key, running DH ratchet"
-                // Skip all messages until header.Ns and run a new DH ratchet step
-                state |> skipMessageKeys headers.Ns |> DHRatchet dhs
-            // perform a normal key exchange
-            | (Some _, Some _, _) ->
-                printfn "Normal chain key ratchet"
-                state
-
-        // if the message sequence number in the header if further ahead messages in between must be skipped
-        let state =
-            if state.Nr < headers.Ns then
-                let state = state |> skipMessageKeys headers.Ns
-                state
+        let mk, state =
+            if state.MKSKIPPED.ContainsKey((headers.DHs, headers.Ns)) then
+                let skip_key = (headers.DHs, headers.Ns)
+                let mk = state.MKSKIPPED[skip_key]
+                (mk, { state with MKSKIPPED = state.MKSKIPPED |> Map.remove skip_key })
             else
-                state
-        
-        let CKr, mk = kdf_ck state.CKr.Value
-        
+                let state =
+                    match (state.DHr, state.CKr, headers.DHs) with
+                    // got a sender pub key but does not have one yet
+                    | (None, None, dhs) ->
+                        printfn "never got a Public Key, running DH ratchet"
+                        state |> DHRatchet dhs
+                    // got sender public key but it does not match the one we have
+                    | (Some dhr, Some ckr, dhs) when not (dhr.ExportSubjectPublicKeyInfo() = dhs) ->
+                        printfn "got new pub key, running DH ratchet"
+                        // Skip all messages until header.Ns and run a new DH ratchet step
+                        state |> skipMessageKeys headers.Ns |> DHRatchet dhs
+                    // perform a normal key exchange
+                    | (_, _, _) -> state
+
+                // if the message sequence number in the header if further ahead messages in between must be skipped
+                let state =
+                    if state.Nr < headers.Ns then
+                        let state = state |> skipMessageKeys headers.Ns
+                        state
+                    else
+                        state
+
+                let CKr, mk = kdf_ck state.CKr.Value
+                (mk, { state with CKr = Some CKr })
+
         use aesAlg = Aes.Create()
         aesAlg.IV <- commonAes.IV
         aesAlg.Key <- mk
         let clearText = aesAlg.DecryptCbc(cypherText, aesAlg.IV)
 
-        ({ state with
-            CKr = Some CKr
-            Nr = state.Nr + 1u },
-         clearText)
+        ({ state with Nr = state.Nr + 1u }, clearText)

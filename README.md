@@ -41,7 +41,7 @@ What features are already implemented or planned?:
 
 - [x] Message Encryption and Decrytion
 - [x] Message Skipping
-- [ ] Out-Of-Order Messages
+- [x] Out-Of-Order Messages
 - [ ] Message Header Encryption
 - [ ] X3DH for initial key exchange
 - [ ] (X)Ed25519 Signature Algorithms that enable X3DH
