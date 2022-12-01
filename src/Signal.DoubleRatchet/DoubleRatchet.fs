@@ -1,6 +1,7 @@
 ﻿namespace Signal.DoubleRatchet
 
 open System.Security.Cryptography
+open Header
 
 module DoubleRatchet =
 
@@ -31,8 +32,6 @@ module DoubleRatchet =
           Nr: uint
           PN: uint
           MKSKIPPED: Map<(byte[] * uint), byte[]> }
-
-    type MessageHeader = { DHs: byte[]; PN: uint; Ns: uint }
 
     let ratchetInit rootkey (keypair: ECDiffieHellman) (dh_public_key: ECDiffieHellmanPublicKey option) =
         match dh_public_key with
@@ -81,7 +80,7 @@ module DoubleRatchet =
          cypherText,
          headers)
 
-    let DecryptMessage state headers cypherText =
+    let DecryptMessage state (headers : MessageHeader) cypherText =
 
         let DHRatchet (dhs: byte array) state =
             let senderPubKey = ECDiffieHellman.Create()
