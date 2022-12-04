@@ -12,6 +12,8 @@ module DoubleRatchet =
 
     exception SkipRangeError of string
 
+    exception DecryptionError of string
+
     let kdf_rk (key: byte[]) dh_out =
         let kdf_out =
             HKDF.DeriveKey(HashAlgorithmName.SHA512, dh_out, (key.Length * 2), key)
@@ -19,8 +21,8 @@ module DoubleRatchet =
         (kdf_out[0..31], kdf_out[32..63])
 
     let kdf_ck (key: byte[]) =
-        let kdf_out = HKDF.DeriveKey(HashAlgorithmName.SHA512, key, (key.Length * 2))
-        (kdf_out[0..31], kdf_out[32..63])
+        let kdf_out = HKDF.DeriveKey(HashAlgorithmName.SHA512, key, (key.Length * 2) + 12)
+        (kdf_out[0..31], kdf_out[32..63], kdf_out[64..])
 
     type DoubleRatchetState =
         { DHs: ECDiffieHellman
@@ -31,7 +33,7 @@ module DoubleRatchet =
           Ns: uint
           Nr: uint
           PN: uint
-          MKSKIPPED: Map<(byte[] * uint), byte[]> }
+          MKSKIPPED: Map<(byte[] * uint), (byte[] * byte[])> }
 
     let ratchetInit rootkey (keypair: ECDiffieHellman) (dh_public_key: ECDiffieHellmanPublicKey option) =
         match dh_public_key with
@@ -60,27 +62,31 @@ module DoubleRatchet =
               PN = 0u
               MKSKIPPED = Map [] }
 
-    let EncryptMessage state plaintext =
-        let (CKs, mk) = kdf_ck state.CKs
+    let EncryptMessage ad state (plaintext: byte array) =
+        let (CKs, mk, nonce) = kdf_ck state.CKs
 
         let headers =
             { DHs = state.DHs.ExportSubjectPublicKeyInfo()
               PN = state.PN
               Ns = state.Ns }
+            |> Encode
 
         use aesAlg = Aes.Create()
         aesAlg.IV <- commonAes.IV
         aesAlg.Key <- mk
 
-        let cypherText = aesAlg.EncryptCbc(plaintext, aesAlg.IV)
+        use hmac = new HMACSHA256(nonce)
+        let mac = hmac.ComputeHash(plaintext)
+
+        let ciphertext = aesAlg.EncryptCbc([mac;plaintext] |> Array.concat, aesAlg.IV)
 
         ({ state with
             CKs = CKs
             Ns = (state.Ns + 1u) },
-         cypherText,
+         ciphertext,
          headers)
 
-    let DecryptMessage state (headers : MessageHeader) cypherText =
+    let DecryptMessage ad state headers (ciphertext: byte array) =
 
         let DHRatchet (dhs: byte array) state =
             let senderPubKey = ECDiffieHellman.Create()
@@ -116,9 +122,9 @@ module DoubleRatchet =
                     [
 
                       for i in [ state.Nr .. (until - 1u) ] do
-                          let ckr, mk = kdf_ck CKr
+                          let ckr, mk, nonce = kdf_ck CKr
                           CKr <- ckr
-                          (dhr, i), mk ]
+                          (dhr, i), (mk, nonce) ]
 
                 { state with
                     CKr = Some CKr
@@ -128,11 +134,13 @@ module DoubleRatchet =
                         |> Seq.fold (fun acc (key, value) -> acc.Add(key, value)) state.MKSKIPPED }
             | None -> state
 
-        let mk, state =
+        let headers = headers |> Decode
+
+        let mk, nonce, state =
             if state.MKSKIPPED.ContainsKey((headers.DHs, headers.Ns)) then
                 let skip_key = (headers.DHs, headers.Ns)
-                let mk = state.MKSKIPPED[skip_key]
-                (mk, { state with MKSKIPPED = state.MKSKIPPED |> Map.remove skip_key })
+                let (mk, nonce) = state.MKSKIPPED[skip_key]
+                (mk, nonce, { state with MKSKIPPED = state.MKSKIPPED |> Map.remove skip_key })
             else
                 let state =
                     match (state.DHr, state.CKr, headers.DHs) with
@@ -156,12 +164,22 @@ module DoubleRatchet =
                     else
                         state
 
-                let CKr, mk = kdf_ck state.CKr.Value
-                (mk, { state with CKr = Some CKr })
+                let CKr, mk, nonce = kdf_ck state.CKr.Value
+                (mk, nonce, { state with CKr = Some CKr })
+
 
         use aesAlg = Aes.Create()
         aesAlg.IV <- commonAes.IV
         aesAlg.Key <- mk
-        let clearText = aesAlg.DecryptCbc(cypherText, aesAlg.IV)
 
-        ({ state with Nr = state.Nr + 1u }, clearText)
+        let contentWithMac = aesAlg.DecryptCbc(ciphertext, aesAlg.IV)
+
+        use hmac = new HMACSHA256(nonce)
+        let mac = contentWithMac[0..31]
+        let content = contentWithMac[32..]
+        let msgMac = hmac.ComputeHash(content)
+
+        if msgMac <> mac then
+            raise (DecryptionError "MAC was invalid")
+
+        ({ state with Nr = state.Nr + 1u }, content)
