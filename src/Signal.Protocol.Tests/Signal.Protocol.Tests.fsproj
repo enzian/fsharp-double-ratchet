@@ -7,6 +7,7 @@
   <ItemGroup>
     <Compile Include="HeaderTests.fs" />
     <Compile Include="DoubleRatchetTests.fs" />
+    <Compile Include="X3DHTests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -24,6 +25,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Signal.DoubleRatchet\Signal.DoubleRatched.fsproj" />
+    <ProjectReference Include="..\Signal.Protocol\Signal.Protocol.fsproj" />
   </ItemGroup>
 </Project>

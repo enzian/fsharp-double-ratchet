@@ -2,7 +2,7 @@ module HeaderTests
 
 open Xunit
 open FsUnit.Xunit
-open Signal.DoubleRatchet.Header
+open Signal.Protocol.Header
 
 [<Fact>]
 let ``Headers can be encoded and decoded`` () =

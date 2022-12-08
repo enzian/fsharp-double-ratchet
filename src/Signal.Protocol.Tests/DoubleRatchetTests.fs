@@ -1,7 +1,7 @@
 module EncryptionDecryptionTests
 
 open Xunit
-open Signal.DoubleRatchet.DoubleRatchet
+open Signal.Protocol.DoubleRatchet
 open System.Security.Cryptography
 open FsUnit.Xunit
 

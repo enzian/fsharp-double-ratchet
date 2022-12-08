@@ -1,4 +1,4 @@
-﻿namespace Signal.DoubleRatchet
+﻿namespace Signal.Protocol
 
 open System.Security.Cryptography
 open Header
