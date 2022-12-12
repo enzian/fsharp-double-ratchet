@@ -15,7 +15,6 @@ let ``Bob should reject Alice's prekey signature if it's invalid`` () =
     let EKa = ECDiffieHellman.Create();
 
     // pre keys
-    let PKa = ECDiffieHellman.Create();
     let PKb = ECDiffieHellman.Create();
 
     (fun () -> SenderKey IKa EKa IKb.PublicKey PKb.PublicKey [|0uy..10uy|] |> ignore) |> should throw typeof<SignaturValidationError>
@@ -58,4 +57,4 @@ let ``Bob and Alice should derive a matching key`` () =
     let SKa = SenderKey IKa EKa IKb.PublicKey PKb.PublicKey PKbSig
     let SKb = ReceiverKey IKb PKb IKa.PublicKey EKa.PublicKey
 
-    SKa |> should equal SKb
+    SKa = SKb |> should be True

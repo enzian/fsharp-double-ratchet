@@ -2,15 +2,43 @@
 
 This project aims to implement the [double-ratchet protocol](https://signal.org/docs/specifications/doubleratchet/) used most notably by the Signal Messaenger in order to transmit end-to-end encrypted messages. This library should enable developers to implement the same kinds of secure messaging infrastructure that powers all best-in-class E2E encrypted messaging apps.
 
+## Discalimer and Compatibility
+
+This repo contains a combination of libraries that can be used to implement end-to-end encrypted messaging in an application. They are not built to be compatible with the Whisper Systems Signal messaging systems and offer so such guarantee.
+
 ## Usage
 
+### Tripple DH Key Aggreement
+
+Before two parties can exchange messages using the Double Ratchet protocol, they need to agree on a root/session key. This can be done using the X3DH key aggreement protocol. This protocol allows members to establish a shared secret through an asynchronous exchange of messages and offers cryptogaphic deniability and forward secrecy.
+
+```fsharp
+// Alice's identity and ephemeral keypair
+let IKa = ECDiffieHellman.Create();
+let EKa = ECDiffieHellman.Create();
+
+// Bobs identity and prekey pair
+let IKb = ECDiffieHellman.Create();
+let PKb = ECDiffieHellman.Create();
+let PKbSig = signPrekey IKb PKb.PublicKey.ExportSubjectPublicKeyInfo()
+
+// Alice uses this key to initialize the Double Ratchet protocol
+let SKa = SenderKey IKa EKa IKb.PublicKey PKb.PublicKey PKbSig 
+
+// Bob uses this key to initialize the Double Ratchet protocol
+let SKb = ReceiverKey IKb PKb IKa.PublicKey EKa.PublicKey
+
+SKa = Skb |> should be True
+```
+
+### Double Ratchet
 In order to use exchange messages using the Double Ratchet protocol, both parties need two things:
 
 * a ECDH Keypair
 * a shared secret key (can be acquired using X3DH or similar other key agreement protocols)
 
 ```fsharp
-// Create the ECDH Keypars for alice and bob
+// Create the ECDH Keypairs for alice and bob
 let alice = ECDiffieHellman.Create()
 let bob   = ECDiffieHellman.Create()
 
