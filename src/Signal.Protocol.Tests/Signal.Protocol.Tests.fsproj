@@ -5,6 +5,7 @@
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="MessageTests.fs" />
     <Compile Include="HeaderTests.fs" />
     <Compile Include="DoubleRatchetTests.fs" />
     <Compile Include="X3DHTests.fs" />

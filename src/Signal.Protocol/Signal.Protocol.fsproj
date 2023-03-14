@@ -7,5 +7,6 @@
     <Compile Include="Header.fs" />
     <Compile Include="X3DH.fs" />
     <Compile Include="DoubleRatchet.fs" />
+    <Compile Include="Messages.fs" />
   </ItemGroup>
 </Project>

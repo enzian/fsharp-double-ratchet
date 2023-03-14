@@ -2,8 +2,9 @@ module EncryptionDecryptionTests
 
 open Xunit
 open Signal.Protocol.DoubleRatchet
-open System.Security.Cryptography
+
 open FsUnit.Xunit
+open System.Security.Cryptography
 
 [<Fact>]
 let ``When transmitting a message from Alice to Bob, Bob should decrypt the message correctly`` () =
