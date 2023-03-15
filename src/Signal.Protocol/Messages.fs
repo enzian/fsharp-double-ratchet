@@ -5,10 +5,7 @@ module Messages =
     type SessionInitiationMsg =
         { SenderIdentityKey: char array
           SenderEphemeralKey: char array
-          OTPKHash: byte array
-        // Header: byte array
-        // CipherMessage: byte array
-         }
+          OTPKHash: byte array }
 
     type EstablishedSessionMessage =
         { Header: byte array
@@ -20,7 +17,6 @@ module Messages =
 
 module Endpoints =
     open System.Security.Cryptography
-    open System.Collections.Generic
     open Messages
     open System
 
@@ -29,21 +25,33 @@ module Endpoints =
           EphemeralKey: ECDiffieHellman
           OneTimePrekeys: Map<byte array, ECDiffieHellman> }
 
-    let initiateSession endpoint (initializationMessage: SessionInitiationMsg) =
-        let sendIdentityKey = ECDiffieHellman.Create()
-        sendIdentityKey.ImportFromPem(ReadOnlySpan(initializationMessage.SenderIdentityKey))
+    let createInitMessage (ourEndpoint : Endpoint) theirIdKey theirPrekey prekeySignature theirPrekeyHash theirEphemeralKey =
+        let sk =
+            X3DH.SenderKey ourEndpoint.IdentityKey ourEndpoint.EphemeralKey theirIdKey theirPrekey prekeySignature
+        
+        let receiverRatchet =
+            DoubleRatchet.ratchetInit sk ourEndpoint.EphemeralKey (Some theirEphemeralKey)
+
+        ({ SenderIdentityKey = ourEndpoint.IdentityKey.ExportSubjectPublicKeyInfoPem().ToCharArray()
+           SenderEphemeralKey = ourEndpoint.EphemeralKey.ExportSubjectPublicKeyInfoPem().ToCharArray()
+           OTPKHash = theirPrekeyHash },
+         receiverRatchet)
+
+    let handleInitMessage (endpoint: Endpoint) initializationMessage =
+        
+        let senderIdentityKey = ECDiffieHellman.Create()
+        senderIdentityKey.ImportFromPem(ReadOnlySpan(initializationMessage.SenderIdentityKey))
 
         let senderEphemeralPubKey = ECDiffieHellman.Create()
-        sendIdentityKey.ImportFromPem(ReadOnlySpan(initializationMessage.SenderEphemeralKey))
+        senderEphemeralPubKey.ImportFromPem(ReadOnlySpan(initializationMessage.SenderEphemeralKey))
 
         if endpoint.OneTimePrekeys.ContainsKey(initializationMessage.OTPKHash) then
             let otpk = endpoint.OneTimePrekeys[initializationMessage.OTPKHash]
-
             let sk =
                 X3DH.ReceiverKey
                     endpoint.IdentityKey
-                    endpoint.EphemeralKey
-                    sendIdentityKey.PublicKey
+                    otpk
+                    senderIdentityKey.PublicKey
                     senderEphemeralPubKey.PublicKey
 
             let receiverRatchet =
@@ -57,5 +65,4 @@ module Endpoints =
 
             Ok(endpointWithoutOTPK, receiverRatchet)
         else
-            Error "Given one-time-prekey was not found on the given endpoint"
-// else Error "failed to find a corresponding one-time prekey"
+            Error "Given one-time-prekey was not found on the endpoint"

@@ -57,4 +57,4 @@ let ``Bob and Alice should derive a matching key`` () =
     let SKa = SenderKey IKa EKa IKb.PublicKey PKb.PublicKey PKbSig
     let SKb = ReceiverKey IKb PKb IKa.PublicKey EKa.PublicKey
 
-    SKa = SKb |> should be True
+    SKa |> should equal SKb
