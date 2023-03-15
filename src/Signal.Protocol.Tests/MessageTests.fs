@@ -4,88 +4,86 @@ open Xunit
 open Signal.Protocol.Messages
 open System.Security.Cryptography
 open Signal.Protocol.Endpoints
-open Signal.Protocol
 open FsUnit.Xunit
 open FsUnit.CustomMatchers
 
+let CreateKeyMaterial =
+    let identityKey = ECDiffieHellman.Create()
+    let ephemeralKey = ECDiffieHellman.Create()
+
+    (identityKey, ephemeralKey)
+
+let CreateSignedPrekeys (identityKey: ECDiffieHellman) nofPrekeys =
+    let sha = SHA256.Create()
+    let ecDsab = ECDsa.Create(identityKey.ExportParameters(true))
+
+    seq {
+        for _ in 1..nofPrekeys ->
+            let prekey = ECDiffieHellman.Create()
+            let publicKeyInfo = prekey.PublicKey.ExportSubjectPublicKeyInfo()
+            let prekeyHash = sha.ComputeHash(publicKeyInfo)
+            let prekeySignature = ecDsab.SignData(publicKeyInfo, HashAlgorithmName.SHA512)
+
+            (prekey, prekeyHash, prekeySignature)
+    }
+
 [<Fact>]
 let ``When Alice initiates a session key with Bob by using one of Bobs One-Time-Prekeys`` () =
-    let aliceIdentityKey = ECDiffieHellman.Create()
+    let aliceIdentityKey, aliceEphemeralKey = CreateKeyMaterial
 
     let aliceIdentityKeyPem =
         aliceIdentityKey.ExportSubjectPublicKeyInfoPem().ToCharArray()
 
-    let aliceEphemeralKey = ECDiffieHellman.Create()
-
     let aliceEphemeralPem =
         aliceEphemeralKey.ExportSubjectPublicKeyInfoPem().ToCharArray()
 
-    let sha = SHA256.Create()
-
-    let bobIdentityKey = ECDiffieHellman.Create()
-    let bobEphemeralKey = ECDiffieHellman.Create()
-    let bobPrekey = ECDiffieHellman.Create()
-
-    let bobPrekeyHash =
-        sha.ComputeHash(bobPrekey.PublicKey.ExportSubjectPublicKeyInfo())
+    let bobIdentityKey, bobEphemeralKey = CreateKeyMaterial
+    let bobPrekeys = CreateSignedPrekeys bobIdentityKey 1
+    let (prekey, hash, _) = bobPrekeys |> Seq.exactlyOne
 
     let initMessage =
         { SenderIdentityKey = aliceIdentityKeyPem
           SenderEphemeralKey = aliceEphemeralPem
-          OTPKHash = bobPrekeyHash }
+          OTPKHash = hash }
 
     let endpoint: Endpoint =
         { IdentityKey = bobIdentityKey
           EphemeralKey = bobEphemeralKey
-          OneTimePrekeys = Map.ofSeq [ bobPrekeyHash, bobPrekey ] }
+          OneTimePrekeys = Map.ofSeq [ hash, prekey ] }
 
     match handleInitMessage endpoint initMessage with
     | Ok (postInitEp, _) -> postInitEp.OneTimePrekeys |> should be Empty
     | Error _ -> Assert.Fail "session initialization should have succeeded"
 
 
-
 [<Fact>]
-let ``Alice and Bob will agree on the same root key`` () =
-    let sha = SHA256.Create()
+let ``Alice and Bob will agree on the same root key after performing a X3DH key exchange`` () =
     let aliceIdentityKey = ECDiffieHellman.Create()
     let aliceEphemeralKey = ECDiffieHellman.Create()
-    let alicePrekey = ECDiffieHellman.Create()
 
-    let alicePrekeyHash =
-        sha.ComputeHash(alicePrekey.PublicKey.ExportSubjectPublicKeyInfo())
-
-    let bobIdentityKey = ECDiffieHellman.Create()
-    let bobEphemeralKey = ECDiffieHellman.Create()
-    let bobPrekey = ECDiffieHellman.Create()
-
-    let bobPrekeyHash =
-        sha.ComputeHash(bobPrekey.PublicKey.ExportSubjectPublicKeyInfo())
-
-    let ecDsab = ECDsa.Create(bobIdentityKey.ExportParameters(true))
-
-    let bobPrekeySignature =
-        ecDsab.SignData(bobPrekey.PublicKey.ExportSubjectPublicKeyInfo(), HashAlgorithmName.SHA512)
+    let bobIdentityKey, bobEphemeralKey = CreateKeyMaterial
+    let prekeys = CreateSignedPrekeys bobIdentityKey 1
+    let (prekey, hash, signature) = prekeys |> Seq.exactlyOne
 
     let bobEndpoint: Endpoint =
         { IdentityKey = bobIdentityKey
           EphemeralKey = bobEphemeralKey
-          OneTimePrekeys = Map.ofSeq [ bobPrekeyHash, bobPrekey ] }
+          OneTimePrekeys = Map.ofSeq [ hash, prekey ] }
 
     let aliceEndpoint: Endpoint =
         { IdentityKey = aliceIdentityKey
           EphemeralKey = aliceEphemeralKey
-          OneTimePrekeys = Map.ofSeq [ alicePrekeyHash, alicePrekey ] }
+          OneTimePrekeys = Map.empty }
 
     let (initMessage, aliceRatchet) =
         createInitMessage
             aliceEndpoint
             bobIdentityKey.PublicKey
-            bobPrekey.PublicKey
-            bobPrekeySignature
-            bobPrekeyHash
+            prekey.PublicKey
+            signature
+            hash
             bobEphemeralKey.PublicKey
 
     match handleInitMessage bobEndpoint initMessage with
     | Ok (_, bobRatchet) -> aliceRatchet.RK |> should equal bobRatchet.RK
-    | Error msg -> failwithf "Failed to initiate the session in bob's side: %s" msg
+    | Error msg -> failwithf "Receiver failed to initialize the session: %s" msg
