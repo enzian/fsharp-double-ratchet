@@ -13,6 +13,8 @@ module DoubleRatchet =
     exception SkipRangeError of string
 
     exception DecryptionError of string
+    
+    type Ciphertext = byte array
 
     let kdf_rk (key: byte[]) dh_out =
         let kdf_out =
@@ -62,7 +64,7 @@ module DoubleRatchet =
               PN = 0u
               MKSKIPPED = Map [] }
 
-    let EncryptMessage ad state (plaintext: byte array) =
+    let EncryptMessage ad state (plaintext: byte array) : (DoubleRatchetState * Ciphertext * MsgHeader) =
         let (CKs, mk, nonce) = kdf_ck state.CKs
 
         let headers =
@@ -78,7 +80,7 @@ module DoubleRatchet =
         use hmac = new HMACSHA256(nonce)
         let mac = hmac.ComputeHash(plaintext)
 
-        let ciphertext = aesAlg.EncryptCbc([mac;plaintext] |> Array.concat, aesAlg.IV)
+        let ciphertext = aesAlg.EncryptCbc([ mac; plaintext ] |> Array.concat, aesAlg.IV)
 
         ({ state with
             CKs = CKs
@@ -86,7 +88,7 @@ module DoubleRatchet =
          ciphertext,
          headers)
 
-    let DecryptMessage ad state headers (ciphertext: byte array) =
+    let DecryptMessage ad state (headers: MsgHeader) (ciphertext: Ciphertext) =
 
         let DHRatchet (dhs: byte array) state =
             let senderPubKey = ECDiffieHellman.Create()

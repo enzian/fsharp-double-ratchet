@@ -9,7 +9,7 @@ module Messages =
 
     type EstablishedSessionMessage =
         { Header: byte array
-          CipherMessage: byte array }
+          CipherText: byte array }
 
     type ProtocolMessage =
         | Initialization of SessionInitiationMsg

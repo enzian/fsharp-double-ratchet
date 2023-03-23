@@ -5,8 +5,10 @@ open System
 module Header =
 
     type MessageHeader = { DHs: byte[]; PN: uint; Ns: uint }
+    
+    type MsgHeader = byte array
 
-    let Encode header =
+    let Encode header : MsgHeader =
         let DHS_section =
             [ BitConverter.GetBytes(header.DHs.Length); header.DHs ] |> Array.concat
 
@@ -14,7 +16,7 @@ module Header =
         let Ns_section = BitConverter.GetBytes header.Ns
         [ DHS_section; PN_section; Ns_section ] |> Array.concat
 
-    let Decode (coded: byte array) =
+    let Decode (coded : MsgHeader) =
         let DHs_length = BitConverter.ToInt32(coded[0..3])
         let coded_DHs = coded[4..]
         let DHs = coded_DHs[.. (DHs_length - 1)]

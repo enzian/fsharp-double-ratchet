@@ -13,9 +13,9 @@ let ``When transmitting a message from Alice to Bob, Bob should decrypt the mess
     let bob = ratchetInit psk (ECDiffieHellman.Create()) None
     let alice = ratchetInit psk (ECDiffieHellman.Create()) (Some bob.DHs.PublicKey)
 
-    let (alice, msg, header) = EncryptMessage ad alice [| 1uy .. 3uy |]
+    let (_, msg, header) = EncryptMessage ad alice [| 1uy .. 3uy |]
 
-    let (bob, output) = DecryptMessage ad bob header msg
+    let (_, output) = DecryptMessage ad bob header msg
 
     output |> should equal [| 1uy .. 3uy |]
     msg |> should not' (equal [| 1uy .. 3uy |])
