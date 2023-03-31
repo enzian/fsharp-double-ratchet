@@ -25,16 +25,16 @@ module Endpoints =
           EphemeralKey: ECDiffieHellman
           OneTimePrekeys: Map<byte array, ECDiffieHellman> }
 
-    let createInitMessage (ourEndpoint : Endpoint) theirIdKey theirPrekey prekeySignature theirPrekeyHash theirEphemeralKey =
+    let createInitMessage (ourEndpoint : Endpoint) theirIdKey theirPrekey prekeySignature theirOntimePrekeyHash theirEphemeralKey theirOTK =
         let sk =
-            X3DH.SenderKey ourEndpoint.IdentityKey ourEndpoint.EphemeralKey theirIdKey theirPrekey prekeySignature
-        
+            X3DH.SenderKey ourEndpoint.IdentityKey ourEndpoint.EphemeralKey theirIdKey theirPrekey prekeySignature theirOTK
+
         let receiverRatchet =
             DoubleRatchet.ratchetInit sk ourEndpoint.EphemeralKey (Some theirEphemeralKey)
 
         ({ SenderIdentityKey = ourEndpoint.IdentityKey.ExportSubjectPublicKeyInfoPem().ToCharArray()
            SenderEphemeralKey = ourEndpoint.EphemeralKey.ExportSubjectPublicKeyInfoPem().ToCharArray()
-           OTPKHash = theirPrekeyHash },
+           OTPKHash = theirOntimePrekeyHash },
          receiverRatchet)
 
     let handleInitMessage (endpoint: Endpoint) initializationMessage =
@@ -50,9 +50,10 @@ module Endpoints =
             let sk =
                 X3DH.ReceiverKey
                     endpoint.IdentityKey
-                    otpk
+                    endpoint.EphemeralKey
                     senderIdentityKey.PublicKey
                     senderEphemeralPubKey.PublicKey
+                    otpk
 
             let receiverRatchet =
                 DoubleRatchet.ratchetInit sk endpoint.EphemeralKey (Some senderEphemeralPubKey.PublicKey)

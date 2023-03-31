@@ -14,6 +14,7 @@ module X3DH =
         (theirIdKey: ECDiffieHellmanPublicKey)
         (their_prekey: ECDiffieHellmanPublicKey)
         (prekeySig: byte array)
+        (theirOneTimeKey : ECDiffieHellmanPublicKey)
         =
         let ecDsa = ECDsa.Create(theirIdKey.ExportParameters())
         let prekeyBytes = their_prekey.ExportSubjectPublicKeyInfo()
@@ -24,15 +25,18 @@ module X3DH =
         let dh1 = ourIdKey.DeriveKeyMaterial(their_prekey)
         let dh2 = ourEphemeralKey.DeriveKeyMaterial(theirIdKey)
         let dh3 = ourEphemeralKey.DeriveKeyMaterial(their_prekey)
-        DeriveKey([ dh1; dh2; dh3 ] |> Array.concat)
+        let dh4 = ourEphemeralKey.DeriveKeyMaterial(theirOneTimeKey)
+        DeriveKey([ dh1; dh2; dh3 ; dh4 ] |> Array.concat)
 
     let ReceiverKey
         (ourIdKey: ECDiffieHellman)
         (ourEphemeralKey: ECDiffieHellman)
         (theirIdKey: ECDiffieHellmanPublicKey)
         (theirEphemeralKey: ECDiffieHellmanPublicKey)
+        (ourOneTimeKey: ECDiffieHellman)
         =
         let dh1 = ourEphemeralKey.DeriveKeyMaterial(theirIdKey)
         let dh2 = ourIdKey.DeriveKeyMaterial(theirEphemeralKey)
         let dh3 = ourEphemeralKey.DeriveKeyMaterial(theirEphemeralKey)
-        DeriveKey([ dh1; dh2; dh3 ] |> Array.concat)
+        let dh4 = ourOneTimeKey.DeriveKeyMaterial(theirEphemeralKey)
+        DeriveKey([ dh1; dh2; dh3 ; dh4 ] |> Array.concat)

@@ -22,37 +22,34 @@ let CreateKeyMaterialWithPem =
 
     (identityKey, idKeyPem, ephemeralKey, ephemeralKeyPem)
 
-let CreateSignedPrekeys (identityKey: ECDiffieHellman) nofPrekeys =
+let CreateSignedPrekey (identityKey: ECDiffieHellman) =
     let sha = SHA256.Create()
     let ecDsab = ECDsa.Create(identityKey.ExportParameters(true))
 
-    seq {
-        for _ in 1..nofPrekeys ->
-            let prekey = ECDiffieHellman.Create()
-            let publicKeyInfo = prekey.PublicKey.ExportSubjectPublicKeyInfo()
-            let prekeyHash = sha.ComputeHash(publicKeyInfo)
-            let prekeySignature = ecDsab.SignData(publicKeyInfo, HashAlgorithmName.SHA512)
+    let prekey = ECDiffieHellman.Create()
+    let publicKeyInfo = prekey.PublicKey.ExportSubjectPublicKeyInfo()
+    let prekeyHash = sha.ComputeHash(publicKeyInfo)
+    let prekeySignature = ecDsab.SignData(publicKeyInfo, HashAlgorithmName.SHA512)
 
-            (prekey, prekeyHash, prekeySignature)
-    }
+    (prekey, prekeyHash, prekeySignature)
 
 [<Fact>]
 let ``When Alice initiates a session key with Bob by using one of Bobs One-Time-Prekeys`` () =
     let _, aliceIdentityKeyPem, _, aliceEphemeralPem = CreateKeyMaterialWithPem
 
-    let bobIdentityKey, bobEphemeralKey = CreateKeyMaterial
-    let bobPrekeys = CreateSignedPrekeys bobIdentityKey 1
-    let (prekey, hash, _) = bobPrekeys |> Seq.exactlyOne
+    let bobIdentityKey, _ = CreateKeyMaterial
+    let (prekey, _, _) = CreateSignedPrekey bobIdentityKey 
+    let (otpk, otHash, _) = CreateSignedPrekey bobIdentityKey
 
     let initMessage =
         { SenderIdentityKey = aliceIdentityKeyPem
           SenderEphemeralKey = aliceEphemeralPem
-          OTPKHash = hash }
+          OTPKHash = otHash }
 
     let endpoint: Endpoint =
         { IdentityKey = bobIdentityKey
-          EphemeralKey = bobEphemeralKey
-          OneTimePrekeys = Map.ofSeq [ hash, prekey ] }
+          EphemeralKey = prekey
+          OneTimePrekeys = Map.ofSeq [ otHash, otpk ] }
 
     match handleInitMessage endpoint initMessage with
     | Ok (postInitEp, _) -> postInitEp.OneTimePrekeys |> should be Empty
@@ -62,14 +59,15 @@ let ``When Alice initiates a session key with Bob by using one of Bobs One-Time-
 let ``Alice and Bob will agree on the same root key after performing a X3DH key exchange`` () =
     let aliceIdentityKey, aliceEphemeralKey = CreateKeyMaterial
 
-    let bobIdentityKey, bobEphemeralKey = CreateKeyMaterial
-    let prekeys = CreateSignedPrekeys bobIdentityKey 1
-    let (prekey, hash, signature) = prekeys |> Seq.exactlyOne
+    let bobIdentityKey, _ = CreateKeyMaterial
+    let (prekey, _, signature) = CreateSignedPrekey bobIdentityKey
+    let (otpk, othash, _) = CreateSignedPrekey bobIdentityKey
+
 
     let bobEndpoint: Endpoint =
         { IdentityKey = bobIdentityKey
-          EphemeralKey = bobEphemeralKey
-          OneTimePrekeys = Map.ofSeq [ hash, prekey ] }
+          EphemeralKey = prekey
+          OneTimePrekeys = Map.ofSeq [ othash, otpk ] }
 
     let aliceEndpoint: Endpoint =
         { IdentityKey = aliceIdentityKey
@@ -82,8 +80,9 @@ let ``Alice and Bob will agree on the same root key after performing a X3DH key 
             bobIdentityKey.PublicKey
             prekey.PublicKey
             signature
-            hash
-            bobEphemeralKey.PublicKey
+            othash
+            prekey.PublicKey
+            otpk.PublicKey
 
     match handleInitMessage bobEndpoint initMessage with
     | Ok (_, bobRatchet) -> aliceRatchet.RK |> should equal bobRatchet.RK // Bob and alice have derrived the same Root key!
