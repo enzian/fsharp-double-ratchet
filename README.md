@@ -72,6 +72,6 @@ What features are already implemented or planned?:
 - [x] Out-Of-Order Messages
 - [x] HMAC digests to authenticate decrypted content
 - [x] X3DH for initial key exchange
-- [ ] OPKs for X3DH key exchange
+- [x] OPKs for X3DH key exchange
 - [ ] Message Header Encryption
 - [ ] (X)Ed25519 Signature Algorithms that enable X3DH
